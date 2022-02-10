@@ -2,6 +2,7 @@
 
 require "active_support/core_ext/string/access"
 require "openssl"
+require "io/console"
 
 module ActiveRecord
   module ConnectionAdapters # :nodoc:
@@ -920,7 +921,9 @@ module ActiveRecord
       def index_name(table_name, options) # :nodoc:
         if Hash === options
           if options[:column]
-            "index_#{table_name}_on_#{Array(options[:column]) * '_and_'}"
+            new_name = "index_#{table_name}_on_#{Array(options[:column]) * '_and_'}"
+
+            validate_and_trim_index_length(table_name, new_name)
           elsif options[:name]
             options[:name]
           else
@@ -1689,6 +1692,44 @@ module ActiveRecord
 
         def quoted_scope(name = nil, type: nil)
           raise NotImplementedError
+        end
+
+        def trim_index_name(current_name)
+          max_index_name_length = index_name_length
+          new_index_name = current_name.freeze
+          indexed_table_names_separator = "_on_"
+
+          while new_index_name.length > max_index_name_length
+            table_names = new_index_name.split(indexed_table_names_separator)
+            primary_table_name_array = table_names[0].split("_")
+            referenced_table_name_array = table_names[1].split("_")
+
+            if primary_table_name_array.length >= referenced_table_name_array.length
+              primary_table_name_array.delete_at(1)
+            else
+              referenced_table_name_array.delete_at(0)
+            end
+
+            new_index_name = primary_table_name_array.join("_") + indexed_table_names_separator + referenced_table_name_array.join("_")
+          end
+
+          puts("\nNew index name   -> \"#{new_index_name}\"\n\n")
+
+          new_index_name
+        end
+
+        def validate_and_trim_index_length(table_name, new_name)
+          index_length_error = "Index name '#{new_name}' on table '#{table_name}' is too long; the limit is #{index_name_length} characters"
+
+          puts("\n#{index_length_error}")
+
+          puts("\nDo you want to fix this automatically? Press 'y' to continue or any other key to skip")
+
+          user_response = $stdin.getch.chomp
+
+          return new_name if user_response.downcase != "y"
+
+          trim_index_name(new_name)
         end
     end
   end
