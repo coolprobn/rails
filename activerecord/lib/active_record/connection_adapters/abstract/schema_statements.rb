@@ -1695,14 +1695,13 @@ module ActiveRecord
         end
 
         def trim_index_name(current_name)
-          max_index_name_length = index_name_length
           new_index_name = current_name.freeze
           indexed_table_names_separator = "_on_"
 
-          while new_index_name.length > max_index_name_length
+          while new_index_name.length > index_name_length
             table_names = new_index_name.split(indexed_table_names_separator)
-            primary_table_name_array = table_names[0].split("_")
-            referenced_table_name_array = table_names[1].split("_")
+            primary_table_name_array = table_names.first.split("_")
+            referenced_table_name_array = table_names.second.split("_")
 
             if primary_table_name_array.length >= referenced_table_name_array.length
               primary_table_name_array.delete_at(1)
@@ -1718,8 +1717,8 @@ module ActiveRecord
           new_index_name
         end
 
-        def validate_and_trim_index_length(table_name, new_name)
-          index_length_error = "Index name '#{new_name}' on table '#{table_name}' is too long; the limit is #{index_name_length} characters"
+        def validate_and_trim_index_length(table_name, index_name)
+          index_length_error = "Index name '#{index_name}' on table '#{table_name}' is too long; the limit is #{index_name_length} characters"
 
           puts("\n#{index_length_error}")
 
@@ -1727,9 +1726,9 @@ module ActiveRecord
 
           user_response = $stdin.getch.chomp
 
-          return new_name if user_response.downcase != "y"
+          return index_name if user_response.downcase != "y"
 
-          trim_index_name(new_name)
+          trim_index_name(index_name)
         end
     end
   end
